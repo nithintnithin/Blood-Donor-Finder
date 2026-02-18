@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Donor Finder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1> Blood Donor Finder</h1>
+        <!-- navigation is hidden until user authenticates -->
+        <nav style="display:none;">
+            <button onclick="showSection('home')">Home</button>
+            <button onclick="showSection('register')">Register</button>
+            <button onclick="showSection('lists')">Lists</button>
+            <button onclick="showSection('about')">About</button>
+            <!-- admin link controlled by JS -->
+            <button id="adminNav" onclick="showSection('admin')" style="display:none;">Admin</button>
+            <button id="logoutBtn" onclick="logout()" class="btn-secondary">Logout</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- login/landing page; user must authenticate to reach dashboard sections -->
+        <section id="login" class="content-section active">
+            <h2>Welcome – please sign in</h2>
+            <div id="manualLogin" style="margin-top:1rem;">
+                <p>Enter your name and phone number:</p>
+                <input type="text" id="manualName" placeholder="Your name" />
+                <input type="tel" id="manualPhone" placeholder="e.g. +1234567890" />
+                <button onclick="manualSignIn()" class="btn-primary">Continue</button>
+                <p id="manualLoginMsg" class="message"></p>
+            </div>
+        </section>
+
+        <section id="home" class="content-section" style="display:none;">
+            <h2>Welcome to Blood Donor Finder</h2>
+            <p class="tagline">"Be the reason for someone's heartbeat. Donate blood"</p>
+            <img src="m1.jpeg" alt="Blood donation scene" class="home-image">
+            
+            <h3>Why Donate Blood? Awareness for Students and Youth</h3>
+            <p>Blood donation is a simple act that can save lives. One donation can help up to three people. As young people, you're in a prime position to donate regularly and inspire others!</p>
+            <img src="m2.jpeg" alt="Young people donating blood" class="home-image">
+            
+            <h3>Who Should NOT Donate Blood?</h3>
+            <ul>
+                <li><strong>Health Conditions</strong>: People with HIV/AIDS, hepatitis, or certain cancers. If you're unwell (e.g., fever, cold), wait until recovered.</li>
+                <li><strong>Medications</strong>: Those on blood thinners, certain antibiotics, or chemotherapy. Consult a doctor if unsure.</li>
+                <li><strong>Lifestyle Factors</strong>: Recent tattoos/piercings (wait 3-12 months), high-risk behaviors, or pregnancy/breastfeeding.</li>
+                <li><strong>Age and Weight</strong>: Under 17 (or 16 with parental consent), or under 110 lbs (50 kg). Over 65 may have restrictions.</li>
+                <li><strong>Recent Travel</strong>: To areas with malaria or other diseases—deferral periods apply.</li>
+            </ul>
+            <p><em>Always check eligibility with a blood bank. Safety first!</em></p>
+            
+            <h3>What to Do After Donating Blood?</h3>
+            <ul>
+                <li><strong>Hydrate</strong>: Drink plenty of water or juice to replenish fluids.</li>
+                <li><strong>Eat Well</strong>: Have a snack to restore energy and iron levels.</li>
+                <li><strong>Rest</strong>: Avoid strenuous activities for 24 hours; take it easy.</li>
+                <li><strong>Monitor Yourself</strong>: If you feel dizzy, lie down with feet elevated. Contact a doctor if symptoms persist.</li>
+                <li><strong>Next Donation</strong>: Wait 56 days (for whole blood) before donating again.</li>
+            </ul>
+            
+            <h3>Ready to Help? Register Now!</h3>
+            <p>Join our community of student donors. Your blood group and details can make a real difference. Click "Register" to get started.</p>
+            <img src="bd3.jpg" alt="Blood donation awareness" class="home-image">
+            
+            <p>Scan the QR code below to access this site quickly and help save lives!</p>
+            <img src="placeholder-qr.png" alt="QR Code to access the site" class="qr-code">
+        </section>
+
+        <section id="about" class="content-section">
+            <h2>About Us</h2>
+            <p>Blood Donor Finder is a purpose-driven platform designed to connect voluntary blood donors with individuals and medical institutions in times of urgent need. In many emergency situations, the biggest challenge is not the lack of donors, but the difficulty of finding the right donor at the right time.</p>
+
+            <p>We believe that every individual has the power to save a life. Blood Donor Finder encourages a culture of voluntary blood donation by spreading awareness about its importance and by making the process of finding donors faster and more accessible.</p>
+
+            <p>Our goal is to build a compassionate community where technology and humanity come together to support one another. Blood Donor Finder stands as a step toward creating a safer, healthier society.</p>
+        </section>
+
+        <section id="register" class="content-section">
+            <h2>Register as a Donor</h2>
+            <div id="registerMessage" class="message"></div>
+            <form id="registerForm">
+                <label for="institution">Institution:</label>
+                <input type="text" id="institution" placeholder="e.g., City University" required>
+                
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" placeholder="Enter your full name" required>
+
+                <label for="age">Age:</label>
+                <input type="number" id="age" min="17" max="65" placeholder="Enter your age" required>
+                
+                <label for="bloodGroup">Blood Group:</label>
+                <select id="bloodGroup" required>
+                    <option value="">Select Blood Group</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                </select>
+                
+                <label for="contact">Contact (Phone):</label>
+                <input type="text" id="contact" placeholder="Enter phone number" required>
+                
+                <label for="address">Address:</label>
+                <input type="text" id="address" placeholder="Enter your address" required>
+                
+                <div class="button-group">
+                    <button type="submit" class="btn-primary">Register</button>
+                    <button type="reset" class="btn-secondary">Clear Form</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="lists" class="content-section">
+            <h2>Donor Lists</h2>
+            <div class="search-container">
+                <input type="text" id="searchBar" placeholder="Search by institution or student name..." oninput="searchDonors()">
+                <button onclick="clearSearch()" class="clear-btn">Clear</button>
+            </div>
+            <button onclick="addInstitution()" class="btn-add">+ Add New Institution</button>
+            <div id="donorLists"></div>
+            <div id="emptyState" class="empty-state" style="display:none;">
+                <p>No institutions found. Add one to get started!</p>
+            </div>
+        </section>
+
+        <section id="institutionDetails" class="content-section">
+            <button onclick="showSection('lists')" class="btn-back">← Back to Lists</button>
+            <h2 id="detailsTitle"></h2>
+            
+            <div class="filters">
+                <h3>Filter by Blood Group:</h3>
+                <div id="bloodGroupFilters"></div>
+            </div>
+            
+            <h3>Registered Donors:</h3>
+            <div id="studentList"></div>
+            <div id="emptyStudents" class="empty-state" style="display:none;">
+                <p>No donors found for this institution.</p>
+            </div>
+        </section>
+        <!-- admin section (only visible to users with isAdmin flag) -->
+        <section id="admin" class="content-section" style="display:none;">
+            <h2>Administrator Tools</h2>
+            <p id="adminStatusMsg"></p>
+            <div id="instList"></div>
+            <hr>
+            <h3>Promote user to admin</h3>
+            <div id="createAdminMessage" class="message"></div>
+            <label for="newAdminEmail">User email or phone:</label>
+            <input type="text" id="newAdminEmail" placeholder="example@gmail.com or +1234567890">
+            <button onclick="createAdmin()" class="btn-primary">Make Admin</button>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Blood Donor Finder. Saving Lives, One Donation at a Time.</p>
+        <!-- owner/admin link is intentionally unobtrusive -->
+        <p><a href="owner.html" style="font-size:0.8rem;">Admin Login</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

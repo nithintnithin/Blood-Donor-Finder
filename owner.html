@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Owner Dashboard - Blood Donor Finder</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* simple adjustments for admin page */
+        #dashboard { padding: 1rem; }
+        .inst-row, .donor-row { border-bottom: 1px solid #ccc; padding: 0.5rem 0; }
+        .btn-small { font-size: 0.8rem; margin-left: 0.5rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Owner / Admin Panel</h1>
+    </header>
+    <main>
+        <section id="loginSection">
+            <h2>Login</h2>
+            <input type="text" id="adminUsername" placeholder="Username">
+            <input type="password" id="adminPassword" placeholder="Admin password">
+            <button onclick="login()">Login</button>
+            <p id="loginMessage" class="message"></p>
+        </section>
+        <section id="dashboard" style="display:none;">
+            <button onclick="logout()" class="btn-secondary">Logout</button>
+            <h2>Institutions & Donors</h2>
+            <div id="instList"></div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2026 Blood Donor Finder.</p>
+    </footer>
+    <script src="owner.js"></script>
+</body>
+</html>
