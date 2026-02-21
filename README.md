@@ -32,36 +32,74 @@ Blood-Donor-Finder-Website-main/
    cd backend
    npm install
    ```
-3. Start the server:
+3. **Seed default admin accounts** (recommended on first setup):
+   ```bash
+   node setup.js
+   ```
+   This creates the database tables and populates default admin accounts.
+4. Start the server:
    ```bash
    npm start
    ```
-4. The server will listen on http://localhost:3000 and serve the static frontend files as well as API routes.
+5. The server will listen on http://localhost:3000 and serve the static frontend files as well as API routes.
 
 ## Client Usage (Everyone)
 1. Open a browser and navigate to `http://localhost:3000` (assuming the backend is running).
-2. Browse sections using the navigation buttons.
-3. Register a donor—information is saved to the server.
-4. View and search lists; results reflect backend data.
+2. Browse sections using the navigation buttons. A dedicated **Owner Panel** button in the header will take you to the separate admin login page (`owner.html`).
+3. Register a donor—information is sent to the server if you're logged in. If you're offline or not authenticated, the details are stored locally and will appear in the lists immediately; they will sync with the backend once you sign in.
+4. View and search lists; results reflect backend data plus any locally cached entries.
 
 ## Admin Dashboard (Owner)
-1. Click the **Admin** button in the navigation.
-2. On first access, you'll see a **"Create First Admin Account"** form.
-   - Choose a username and password for the first admin.
-   - Click "Create Admin Account".
-3. After the first admin is created, the login form appears.
-4. Log in with your credentials.
-5. Once authenticated, you can:
-   - View all institutions and their donors.
-   - Delete entire institutions or individual donors.
-   - **Create additional admin accounts** at the bottom of the panel (username + password).
-   - All new admins have the same full access and can create more admins.
-   - Logout to protect access.
+
+### Default Admin Credentials
+The system comes with a **pre-configured admin account**. Use it to log in:
+
+| Username | Password |
+|----------|----------|
+| `MITHUN M` | `BABBLU0124` |
+
+### Using the Admin Panel
+1. Click the **Owner Panel** button to open `owner.html` (or navigate directly to `http://localhost:3000/owner.html`).
+2. **First-time users**: If no admin accounts exist, you'll see a **"Create Your Admin Account"** form.
+   - Enter a username and password and click **Create Admin Account**.
+   - You will be automatically logged in and can manage data immediately.
+3. **Regular login**: If admin accounts already exist, enter your username and password to log in.
+4. Once logged in to the **Admin Dashboard**, you can:
+   - **View all institutions and their registered donors** in a clean list format.
+   - **Delete institutions** - click the delete button next to any institution (confirmation required).
+   - **Delete individual donors** - click the "x" button next to any donor entry (confirmation required).
+   - **Create additional admin accounts** - use the "Create New Admin Account" section at the bottom.
+   - **Manage data without page refreshes** - all deletions use AJAX for smooth experience.
+   - **Logout** - click the Logout button to securely exit.
+
+### Admin Features
+- ✅ Delete entire institutions (cascades to delete all associated donors)
+- ✅ Delete specific donors from any institution
+- ✅ Create new admin accounts (requires existing authentication)
+- ✅ Protected endpoints (JWT token-based authentication)
+- ✅ No page refresh on data changes (AJAX-based)
+- ✅ Confirmation dialogs before destructive actions
 
 ## Technology Stack
 - **Node.js + Express** – backend server and REST API.
 - **SQLite database** – lightweight, file‑based persistence for donor records.
 - **HTML/CSS/JavaScript** – frontend user interface.
+- **bcrypt** – password hashing for admin accounts.
+- **JWT** – token-based authentication for protected routes.
+
+## Quick Start (Admin Access)
+```bash
+# Setup
+cd backend
+npm install
+node setup.js
+npm start
+
+# Then visit
+# User site: http://localhost:3000
+# Admin panel: http://localhost:3000/owner.html
+# Login with: MITHUN M / BABBLU0124
+```
 
 ## Browser Support
 Chrome, Firefox, Safari, Edge (modern versions).

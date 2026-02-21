@@ -52,8 +52,7 @@ async function setup() {
 
         // Seed default admins
         const adminAccounts = [
-            { username: 'admin', password: 'admin123' },
-            { username: 'Mithun M', password: 'Babblu0124' }
+            { username: 'MITHUN M', password: 'BABBLU0124' }
         ];
 
         for (const account of adminAccounts) {
@@ -93,8 +92,7 @@ async function setup() {
 
         console.log('\n✓ Database setup complete!');
         console.log('\nAvailable admin accounts:');
-        console.log('  - Username: admin, Password: admin123');
-        console.log('  - Username: Mithun M, Password: Babblu0124');
+        console.log('  - Username: MITHUN M, Password: BABBLU0124');
         if (process.env.ADMIN_USERS) {
             console.log(`  - Plus any from ADMIN_USERS env var`);
         }

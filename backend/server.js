@@ -161,6 +161,32 @@ app.post('/api/auth/manual', (req, res) => {
     });
 });
 
+// simple status endpoint to let front‑end know if any admin exists yet
+app.get('/api/admins/status', (req, res) => {
+    db.get('SELECT COUNT(*) as count FROM admins', (err, row) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json({ exists: row.count > 0 });
+    });
+});
+
+// create a new admin account using username/password (requires existing admin)
+app.post('/api/admins/create', requireAdmin, (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+    bcrypt.hash(password, 10, (err, hash) => {
+        if (err) return res.status(500).json({ error: 'Server error' });
+        db.run('INSERT INTO admins (username, password_hash) VALUES (?,?)', [username, hash], function(err) {
+            if (err) {
+                if (err.code === 'SQLITE_CONSTRAINT') {
+                    return res.status(409).json({ error: 'Username already exists' });
+                }
+                return res.status(500).json({ error: 'Database error' });
+            }
+            res.status(201).json({ message: 'Admin account created' });
+        });
+    });
+});
+
 // promote an existing (or new) user to admin - only visible to admins
 app.post('/api/admins', requireAdmin, (req, res) => {
     const { email, phone, name } = req.body;
@@ -212,47 +238,17 @@ app.post('/api/first-admin', (req, res) => {
     });
 });
 
-// Middleware to verify JWT token
-function requireAuth(req, res, next) {
-    const auth = req.headers['authorization'];
-    if (!auth) return res.status(401).json({ error: 'Unauthorized' });
-    const parts = auth.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') return res.status(401).json({ error: 'Unauthorized' });
-    jwt.verify(parts[1], JWT_SECRET, (err, decoded) => {
-        if (err) return res.status(401).json({ error: 'Unauthorized' });
-        req.admin = decoded;
-        next();
-    });
-}
-
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
-    db.get('SELECT * FROM admins WHERE username = ?', [username], (err, row) => {
+    db.get('SELECT * FROM admins WHERE LOWER(username) = LOWER(?)', [username], (err, row) => {
         if (err) return res.status(500).json({ error: 'Database error' });
         if (!row) return res.status(401).json({ error: 'Invalid credentials' });
         bcrypt.compare(password, row.password_hash, (err, match) => {
             if (err) return res.status(500).json({ error: 'Server error' });
             if (!match) return res.status(401).json({ error: 'Invalid credentials' });
-            const token = jwt.sign({ id: row.id, username: row.username }, JWT_SECRET, { expiresIn: '2h' });
+            const token = jwt.sign({ id: row.id, username: row.username, isAdmin: true }, JWT_SECRET, { expiresIn: '2h' });
             res.json({ token });
-        });
-    });
-});
-
-app.post('/api/admins', requireAuth, (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
-    bcrypt.hash(password, 10, (err, hash) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        db.run('INSERT INTO admins (username, password_hash) VALUES (?,?)', [username, hash], function(err) {
-            if (err) {
-                if (err.code === 'SQLITE_CONSTRAINT') {
-                    return res.status(409).json({ error: 'Username already exists' });
-                }
-                return res.status(500).json({ error: 'Database error' });
-            }
-            res.status(201).json({ message: 'Admin created' });
         });
     });
 });

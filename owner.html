@@ -15,24 +15,47 @@
 <body>
     <header>
         <h1>Owner / Admin Panel</h1>
+        <p><a href="index.html" class="btn-secondary" style="font-size:0.9rem; text-decoration:none;">← Back to Main Site</a></p>
     </header>
     <main>
-        <section id="loginSection">
-            <h2>Login</h2>
+        <section id="firstAdminSection" style="display:none;">
+            <h2>🆕 Create Your Admin Account</h2>
+            <p style="color:#666; margin-bottom:1rem;">This is your first time. Create an administrator account to manage the blood donor data.</p>
+            <input type="text" id="firstAdminUsername" placeholder="Username">
+            <input type="password" id="firstAdminPassword" placeholder="Password">
+            <button onclick="createFirstAdmin()" class="btn-primary">Create Admin Account</button>
+            <p id="firstAdminMessage" class="message"></p>
+        </section>
+        <section id="loginSection" style="display:none;">
+            <h2>🔐 Admin Login</h2>
             <input type="text" id="adminUsername" placeholder="Username">
-            <input type="password" id="adminPassword" placeholder="Admin password">
-            <button onclick="login()">Login</button>
+            <input type="password" id="adminPassword" placeholder="Password">
+            <button onclick="login()" class="btn-primary">Login</button>
             <p id="loginMessage" class="message"></p>
         </section>
         <section id="dashboard" style="display:none;">
-            <button onclick="logout()" class="btn-secondary">Logout</button>
-            <h2>Institutions & Donors</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2 style="margin:0;">Admin Dashboard</h2>
+                <button onclick="logout()" class="btn-secondary">Logout</button>
+            </div>
+            <h3>Institutions & Donors</h3>
             <div id="instList"></div>
+            <hr>
+            <h3>Create New Admin Account</h3>
+            <p style="color:#666;">Add more administrators to help manage the system.</p>
+            <input type="text" id="newAdminUsername" placeholder="Username">
+            <input type="password" id="newAdminPassword" placeholder="Password">
+            <button onclick="createAdminUser()" class="btn-primary">Create Admin</button>
+            <p id="newAdminMsg" class="message"></p>
         </section>
     </main>
     <footer>
         <p>&copy; 2026 Blood Donor Finder.</p>
     </footer>
     <script src="owner.js"></script>
+    <script>
+        // Initialize the page when it loads
+        window.addEventListener('DOMContentLoaded', checkAdminStatus);
+    </script>
 </body>
 </html>

@@ -1,12 +1,40 @@
 // authentication state
 let authToken = null;
-let isAdmin = false; // extracted from JWT or server response
+// admin role is handled in separate owner/admin panel; index page treats all users the same
+let manualMode = false; // true when user signed in with name+phone without a valid JWT
 
 // Data will now be stored on the backend; frontend fetches it via API
 let donors = {};
+let localDonorsCache = []; // donors added when backend unavailable
 let currentInstitution = null;
 let currentFilter = 'All';
 let searchQuery = '';
+
+// localStorage helpers
+function saveCache() {
+    try { localStorage.setItem('donorCache', JSON.stringify(localDonorsCache)); } catch {}
+}
+function loadCache() {
+    try { const v = localStorage.getItem('donorCache'); if (v) localDonorsCache = JSON.parse(v); } catch {}
+}
+
+// build headers for fetch calls; skip Authorization when in manual mode or no token
+function authHeaders(contentType = 'application/json') {
+    const headers = {};
+    if (contentType) headers['Content-Type'] = contentType;
+    if (authToken && !manualMode) headers['Authorization'] = 'Bearer ' + authToken;
+    return headers;
+}
+
+// add donor to local data structure and re‑render lists
+function addLocalDonor(donor) {
+    // record in cache so we can reapply after fresh loads
+    localDonorsCache.push(donor);
+    saveCache();
+    if (!donors[donor.institution]) donors[donor.institution] = [];
+    donors[donor.institution].push(donor);
+    renderLists();
+}
 
 // Google credential callback (called by GSI)
 async function handleCredentialResponse(response) {
@@ -19,7 +47,6 @@ async function handleCredentialResponse(response) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Authentication failed');
         authToken = data.token;
-        isAdmin = !!data.isAdmin;
         localStorage.setItem('authToken', authToken);
         showDashboard();
     } catch (err) {
@@ -47,40 +74,48 @@ async function manualSignIn() {
         return;
     }
 
-    // immediately treat user as signed in so navigation occurs
-    authToken = 'manual';
-    isAdmin = false;
-    localStorage.setItem('authToken', authToken);
-    showDashboard();
-
-    // attempt to notify backend (optional); errors do not block UI
+    // try contacting backend; if that fails we'll fall back to offline mode
     try {
         const res = await fetch('/api/auth/manual', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             body: JSON.stringify({ name, phone })
         });
         const data = await res.json();
         if (res.ok && data.token) {
             authToken = data.token;
-            isAdmin = !!data.isAdmin;
+            manualMode = false;
             localStorage.setItem('authToken', authToken);
+            showDashboard();
+            return;
+        } else {
+            throw new Error(data.error || 'Authentication failed');
         }
     } catch (err) {
-        console.warn('backend auth failed, continuing offline');
+        console.warn('manual sign-in backend error:', err);
+        // offline/unauthorized path
+        manualMode = true;
+        authToken = null;
+        isAdmin = false;
+        localStorage.removeItem('authToken');
+        localStorage.setItem('manualMode','true');
+        msgDiv.textContent = 'Working offline – not authenticated';
+        msgDiv.className = 'message';
+        showDashboard();
     }
 }
 
-// check for existing token on page load
+// check for existing token or offline flag on page load
 function initAuth() {
+    loadCache();
     const token = localStorage.getItem('authToken');
     if (token) {
         authToken = token;
-        // if looks like a JWT try decode, otherwise assume simple manual token
+        // if looks like a JWT try decode, otherwise ignore
         if (token.split('.').length === 3) {
             try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                isAdmin = !!payload.isAdmin;
+                // payload may include isAdmin but index page ignores it
+                JSON.parse(atob(token.split('.')[1]));
             } catch (e) {
                 console.warn('invalid stored JWT, clearing');
                 localStorage.removeItem('authToken');
@@ -88,34 +123,38 @@ function initAuth() {
                 return;
             }
         } else {
-            isAdmin = false;
+            authToken = null;
         }
-        showDashboard();
     }
+    // manual flag persisted as well
+    if (!authToken && localStorage.getItem('manualMode') === 'true') {
+        manualMode = true;
+    }
+    if (authToken || manualMode) showDashboard();
 }
 
 async function showDashboard() {
-    // require at least a token (even dummy) to move forward
-    if (!authToken) {
+    // require some form of sign‑in to move forward
+    if (!authToken && !manualMode) {
         alert('Unable to show dashboard: no authentication token');
         return;
     }
     // reveal navigation
     document.querySelector('nav').style.display = 'flex';
-    if (isAdmin) document.getElementById('adminNav').style.display = 'inline-block';
     // hide login section and show home
     document.getElementById('login').style.display = 'none';
     document.getElementById('home').style.display = '';
     try { await loadDonors(); } catch {}
-    if (isAdmin) { try { await loadInstitutions(); } catch {} }
-    // bypass showSection guard by temporarily storing token
     showSection('home');
 }
 
 function logout() {
     authToken = null;
     isAdmin = false;
+    manualMode = false;
     localStorage.removeItem('authToken');
+    localStorage.removeItem('manualMode');
+    localStorage.removeItem('donorCache');
     document.querySelector('nav').style.display = 'none';
     document.getElementById('adminNav').style.display = 'none';
     document.getElementById('login').style.display = '';
@@ -128,7 +167,8 @@ function logout() {
 
 // Show/hide sections
 function showSection(sectionId) {
-    if (!authToken && sectionId !== 'login') {
+    // allow navigation if user either has a valid token or is in manual/offline mode
+    if (!authToken && !manualMode && sectionId !== 'login') {
         alert('You must sign in first');
         return;
     }
@@ -145,13 +185,7 @@ function showSection(sectionId) {
         renderLists();
     } else if (sectionId === 'institutionDetails') {
         renderInstitutionDetails();
-    } else if (sectionId === 'admin') {
-        if (isAdmin) loadInstitutions();
-        else {
-            document.getElementById('adminStatusMsg').textContent = 'You are not authorized to view admin tools';
-        }
     }
-    // admin check occurred earlier when showing nav card
 }
 
 
@@ -177,12 +211,13 @@ async function registerDonor(e) {
         return;
     }
 
-    // send to backend
+    const donorObj = { institution, name, age, bloodGroup, contact, address };
+    // attempt to send to backend
     try {
         const res = await fetch('/api/donors', {
             method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json' }, authToken ? { Authorization: 'Bearer ' + authToken } : {}),
-            body: JSON.stringify({ institution, name, age, bloodGroup, contact, address })
+            headers: authHeaders(),
+            body: JSON.stringify(donorObj)
         });
         if (!res.ok) {
             const err = await res.json();
@@ -191,8 +226,11 @@ async function registerDonor(e) {
         showMessage('registerMessage', 'Registered successfully!', 'success');
         this.reset();
         await loadDonors();
+        return;
     } catch (err) {
-        showMessage('registerMessage', err.message, 'error');
+        // backend call failed (unauthorized, offline, etc). keep donor locally so user sees it.
+        showMessage('registerMessage', 'Saved locally – login or check network to sync', 'success');
+        addLocalDonor(donorObj);
     }
 }
 document.getElementById('registerForm').addEventListener('submit', registerDonor);
@@ -248,13 +286,6 @@ function renderLists() {
             instHeader.textContent = `${institution} (${studentsMatch.length} donor${studentsMatch.length !== 1 ? 's' : ''})`;
             instHeader.onclick = () => viewInstitution(institution);
             instDiv.appendChild(instHeader);
-            if (isAdmin) {
-                const delBtn = document.createElement('button');
-                delBtn.textContent = '×';
-                delBtn.className = 'btn-small btn-danger';
-                delBtn.onclick = (e) => { e.stopPropagation(); deleteInstitution(institution); };
-                instDiv.appendChild(delBtn);
-            }
             
             listsDiv.appendChild(instDiv);
         }
@@ -328,9 +359,6 @@ function renderInstitutionDetails() {
                 </div>
             </div>
         `;
-        if (isAdmin) {
-            inner += `<button class="btn-small btn-danger" onclick="deleteDonor('${currentInstitution}', ${index})">Delete</button>`;
-        }
         studentDiv.innerHTML = inner;
         studentListDiv.appendChild(studentDiv);
     });
@@ -350,7 +378,7 @@ async function addInstitution() {
         try {
             const res = await fetch('/api/institutions', {
                 method: 'POST',
-                headers: Object.assign({ 'Content-Type': 'application/json' }, authToken ? { Authorization: 'Bearer ' + authToken } : {}),
+                headers: authHeaders(),
                 body: JSON.stringify({ name: trimmedInst })
             });
             if (!res.ok) {
@@ -361,7 +389,12 @@ async function addInstitution() {
             await loadDonors();
             renderLists();
         } catch (err) {
-            alert(err.message);
+            // offline / unauthorized: keep institution locally so user can still add donors later
+            alert(err.message + ' (added locally)');
+            if (!donors[trimmedInst]) {
+                donors[trimmedInst] = [];
+                renderLists();
+            }
         }
     }
 }
@@ -380,137 +413,27 @@ function clearSearch() {
 async function loadDonors() {
     try {
         const res = await fetch('/api/donors', {
-            headers: authToken ? { Authorization: 'Bearer ' + authToken } : {}
+            headers: authHeaders(),
         });
         donors = await res.json();
+        // merge any locally cached entries
+        if (localDonorsCache.length) {
+            localDonorsCache.forEach(donor => {
+                if (!donors[donor.institution]) donors[donor.institution] = [];
+                donors[donor.institution].push(donor);
+            });
+        }
     } catch (err) {
         console.error('Failed to load donors', err);
-        donors = {};
+        // keep existing donors rather than clearing
     }
 }
 
-// ------------------------------------------------------------------
-// Admin panel functionality
-
-// reload the donors (same as regular user) and render admin‑specific controls
-async function loadInstitutions() {
-    try {
-        const res = await fetch('/api/donors', {
-            headers: authToken ? { Authorization: 'Bearer ' + authToken } : {}
-        });
-        const data = await res.json();
-        renderInstitutions(data);
-    } catch (err) {
-        console.error('cannot load', err);
-    }
-}
-
-// promote a user (by email or phone) to administrator
-async function createAdmin() {
-    const identifier = document.getElementById('newAdminEmail').value.trim();
-    const msgDiv = document.getElementById('createAdminMessage');
-    msgDiv.textContent = '';
-    if (!identifier) {
-        msgDiv.textContent = 'Provide an email or phone number';
-        msgDiv.className = 'message error';
-        return;
-    }
-    let payload = {};
-    if (/^\+?[0-9]{6,15}$/.test(identifier)) {
-        payload.phone = identifier;
-    } else if (/\S+@\S+/.test(identifier)) {
-        payload.email = identifier.toLowerCase();
-    } else {
-        msgDiv.textContent = 'Invalid email or phone format';
-        msgDiv.className = 'message error';
-        return;
-    }
-    try {
-        const res = await fetch('/api/admins', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + authToken
-            },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-        msgDiv.textContent = 'Admin account set';
-        msgDiv.className = 'message success';
-        document.getElementById('newAdminEmail').value = '';
-    } catch (err) {
-        msgDiv.textContent = err.message;
-        msgDiv.className = 'message error';
-    }
-}
-
-function renderInstitutions(donorsData) {
-    const instList = document.getElementById('instList');
-    instList.innerHTML = '';
-    for (const inst in donorsData) {
-        const row = document.createElement('div');
-        row.className = 'inst-row';
-        let html = `<strong>${inst}</strong> (<span>${donorsData[inst].length}</span> donors)`;
-        if (isAdmin) {
-            html += ` <button class="btn-small btn-secondary" onclick="deleteInstitution('${inst}')">Delete</button>`;
-        }
-        row.innerHTML = html;
-        const donorContainer = document.createElement('div');
-        donorsData[inst].forEach((d, idx) => {
-            const dr = document.createElement('div');
-            dr.className = 'donor-row';
-            let donorHtml = `${d.name} (${d.bloodGroup}) - ${d.contact}`;
-            if (isAdmin) {
-                donorHtml += ` <button class="btn-small" onclick="deleteDonor('${inst}', ${idx})">x</button>`;
-            }
-            dr.innerHTML = donorHtml;
-            donorContainer.appendChild(dr);
-        });
-        row.appendChild(donorContainer);
-        instList.appendChild(row);
-    }
-}        const donorContainer = document.createElement('div');
-        donorsData[inst].forEach((d, idx) => {
-            const dr = document.createElement('div');
-            dr.className = 'donor-row';
-            dr.innerHTML = `${d.name} (${d.bloodGroup}) - ${d.contact}
-                            <button class="btn-small" onclick="deleteDonor('${inst}', ${idx})">x</button>`;
-            donorContainer.appendChild(dr);
-        });
-        row.appendChild(donorContainer);
-        instList.appendChild(row);
-    }
-}
-
-async function deleteInstitution(inst) {
-    if (!confirm(`Really delete institution "${inst}"?`)) return;
-    await fetch(`/api/institutions/${encodeURIComponent(inst)}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + authToken }
-    });
-    loadInstitutions();
-    await loadDonors();
-    renderLists();
-}
-
-async function deleteDonor(inst, idx) {
-    if (!confirm('Delete this donor?')) return;
-    await fetch(`/api/institutions/${encodeURIComponent(inst)}/donors/${idx}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + authToken }
-    });
-    loadInstitutions();
-    await loadDonors();
-    renderLists();
-}
-
-// ------------------------------------------------------------------
 
 // initialization
 (async function init() {
     initAuth();
     await loadDonors();
     // if not authenticated we'll be on login section
-    if (authToken) showSection('home');
+    if (authToken || manualMode) showSection('home');
 })();
