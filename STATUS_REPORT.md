@@ -25,8 +25,8 @@ Your website had a **JSON parsing error** that's now been completely resolved:
 ✅ index.html          (176 lines) - Main website with integrated admin panel
 ✅ script.js           (435 lines) - All frontend logic, no duplicates
 ✅ style.css           (500+ lines) - Complete styling with responsive design
-✅ owner.html          (37 lines) - Alternate admin page
-✅ owner.js            (Exists) - Admin-only functionality
+✅ owner.html          (removed – functionality merged into index.html)
+✅ owner.js            (removed – merged into script.js)
 ```
 
 ### Backend Files (Ready ✅)
@@ -104,19 +104,14 @@ Visit: **http://localhost:3000**
 6. Use search and blood group filters
 
 ### First-Time Administrator
-1. Click "Admin" button
-2. See "Create First Admin Account" form
-3. Enter username and password
-4. Click "Create Admin Account"
-5. Success message appears
-6. Click Admin again
-7. Login with your credentials
-8. Full admin panel appears
-9. Can manage donors and institutions
-10. Can create more admin accounts
+1. Click "Owner Panel" button in the header
+2. See "Create Your Admin Account" form (or login form if admins exist)
+3. Enter username and password and click **Create Admin Account**
+4. After creation you'll be automatically logged in
+5. Use the same Owner Panel button to return later and manage donors/institutions
 
 ### Subsequent Administrators
-1. First admin logs in
+1. First admin logs in through Owner Panel
 2. Scroll to "Create new admin" section
 3. Enter username and password
 4. Click "Add Admin"

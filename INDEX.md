@@ -68,8 +68,8 @@ Blood-Donor-Finder-Website-main/
 ├── 📄 index.html                        ← Main website
 ├── 📄 script.js                         ← Frontend logic
 ├── 📄 style.css                         ← Styling
-├── 📄 owner.html                        ← Alternate admin page
-├── 📄 owner.js                          ← Admin logic
+├── 📄 index.html                        ← Main website (includes admin dashboard)
+├── 📄 script.js                         ← Frontend logic
 │
 └── 📁 backend/
     ├── 📄 server.js                     ← Express API

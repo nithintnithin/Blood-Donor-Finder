@@ -3,11 +3,9 @@
 ## 📦 What You Have
 
 ### Frontend Files ✅
-- ✅ `index.html` - Main website with all sections
+- ✅ `index.html` - Single-page website with integrated admin dashboard
 - ✅ `script.js` - All frontend logic (435 lines)
 - ✅ `style.css` - Complete styling
-- ✅ `owner.html` - Alternate admin page
-- ✅ `owner.js` - Admin logic for alt page
 - ✅ `m1.jpeg`, `m2.jpeg`, `bd3.jpg`, `mm2.jpeg` - Image assets
 
 ### Backend Files ✅

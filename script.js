@@ -1,7 +1,23 @@
 // authentication state
 let authToken = null;
+// whether current user is an admin (controls adminNav and hidden admin section)
+let isAdmin = false;
 // admin role is handled in separate owner/admin panel; index page treats all users the same
 let manualMode = false; // true when user signed in with name+phone without a valid JWT
+
+// owner/admin dashboard token (separate from regular user auth)
+let adminToken = null;
+
+// determine API base URL (so that fetch works when static files are served via
+// Live Server on a different port). If current origin is not port 3000 we assume
+// the backend lives at http://localhost:3000.
+const API_BASE = (function() {
+    const loc = window.location;
+    return (loc.port && loc.port !== '3000') ? 'http://localhost:3000' : '';
+})();
+function apiFetch(path, opts) {
+    return fetch(API_BASE + path, opts);
+}
 
 // Data will now be stored on the backend; frontend fetches it via API
 let donors = {};
@@ -39,7 +55,7 @@ function addLocalDonor(donor) {
 // Google credential callback (called by GSI)
 async function handleCredentialResponse(response) {
     try {
-        const res = await fetch('/api/auth/google', {
+        const res = await apiFetch('/api/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ idToken: response.credential })
@@ -47,6 +63,7 @@ async function handleCredentialResponse(response) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Authentication failed');
         authToken = data.token;
+        isAdmin = !!data.isAdmin;
         localStorage.setItem('authToken', authToken);
         showDashboard();
     } catch (err) {
@@ -76,7 +93,7 @@ async function manualSignIn() {
 
     // try contacting backend; if that fails we'll fall back to offline mode
     try {
-        const res = await fetch('/api/auth/manual', {
+        const res = await apiFetch('/api/auth/manual', {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({ name, phone })
@@ -84,6 +101,7 @@ async function manualSignIn() {
         const data = await res.json();
         if (res.ok && data.token) {
             authToken = data.token;
+            isAdmin = !!data.isAdmin;
             manualMode = false;
             localStorage.setItem('authToken', authToken);
             showDashboard();
@@ -114,8 +132,8 @@ function initAuth() {
         // if looks like a JWT try decode, otherwise ignore
         if (token.split('.').length === 3) {
             try {
-                // payload may include isAdmin but index page ignores it
-                JSON.parse(atob(token.split('.')[1]));
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                isAdmin = !!payload.isAdmin;
             } catch (e) {
                 console.warn('invalid stored JWT, clearing');
                 localStorage.removeItem('authToken');
@@ -141,6 +159,8 @@ async function showDashboard() {
     }
     // reveal navigation
     document.querySelector('nav').style.display = 'flex';
+    // show admin tools link if user has admin privileges
+    document.getElementById('adminNav').style.display = isAdmin ? 'inline-block' : 'none';
     // hide login section and show home
     document.getElementById('login').style.display = 'none';
     document.getElementById('home').style.display = '';
@@ -168,23 +188,42 @@ function logout() {
 // Show/hide sections
 function showSection(sectionId) {
     // allow navigation if user either has a valid token or is in manual/offline mode
-    if (!authToken && !manualMode && sectionId !== 'login') {
+    if (!authToken && !manualMode && sectionId !== 'login' && sectionId !== 'ownerPanel') {
         alert('You must sign in first');
         return;
     }
+    // show nav only for normal app pages when user is signed in
+    if (sectionId !== 'ownerPanel' && (authToken || manualMode)) {
+        document.querySelector('nav').style.display = 'flex';
+    }
+    // hide all sections and remove active state; also reset any inline display overrides
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
+        section.style.display = 'none';
     });
     const section = document.getElementById(sectionId);
+    if (section) {
+        // clear inline style to allow CSS rules to take effect (fixes ownerPanel blank issue)
+        section.style.display = '';
+        section.classList.add('active');
+    }
     if (section) {
         section.classList.add('active');
     }
     
+    // hide top navigation when viewer is in the owner panel
+    if (sectionId === 'ownerPanel') {
+        document.querySelector('nav').style.display = 'none';
+    }
+
     // render dynamic areas when they become visible
     if (sectionId === 'lists') {
         renderLists();
     } else if (sectionId === 'institutionDetails') {
         renderInstitutionDetails();
+    } else if (sectionId === 'ownerPanel') {
+        // when owner panel is shown fetch latest admin status/data
+        ownerCheckAdminStatus();
     }
 }
 
@@ -214,7 +253,7 @@ async function registerDonor(e) {
     const donorObj = { institution, name, age, bloodGroup, contact, address };
     // attempt to send to backend
     try {
-        const res = await fetch('/api/donors', {
+        const res = await apiFetch('/api/donors', {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify(donorObj)
@@ -376,7 +415,7 @@ async function addInstitution() {
     if (institution && institution.trim()) {
         const trimmedInst = institution.trim();
         try {
-            const res = await fetch('/api/institutions', {
+            const res = await apiFetch('/api/institutions', {
                 method: 'POST',
                 headers: authHeaders(),
                 body: JSON.stringify({ name: trimmedInst })
@@ -412,7 +451,7 @@ function clearSearch() {
 // helper to load donors from backend
 async function loadDonors() {
     try {
-        const res = await fetch('/api/donors', {
+        const res = await apiFetch('/api/donors', {
             headers: authHeaders(),
         });
         donors = await res.json();
@@ -429,6 +468,242 @@ async function loadDonors() {
     }
 }
 
+
+// ------ owner/admin panel helpers ------
+
+// called when ownerPanel section becomes active
+async function ownerCheckAdminStatus() {
+    const firstEl = document.getElementById('firstAdminSection');
+    const loginEl = document.getElementById('loginSection');
+    try {
+        const res = await apiFetch('/api/admins/status');
+        if (!res.ok) throw new Error('status failed');
+        const data = await res.json();
+        firstEl.style.display = 'none';
+        loginEl.style.display = 'none';
+        if (data.exists) {
+            loginEl.style.display = 'block';
+        } else {
+            firstEl.style.display = 'block';
+        }
+    } catch (err) {
+        console.error('could not fetch admin status', err);
+        firstEl.style.display = 'none';
+        loginEl.style.display = 'block';
+        const msg = document.getElementById('loginMessage');
+        msg.textContent = 'Connection issue - please try again';
+        msg.className = 'message';
+    }
+}
+
+async function ownerCreateFirstAdmin() {
+    const username = document.getElementById('firstAdminUsername').value;
+    const pwd = document.getElementById('firstAdminPassword').value;
+    const msg = document.getElementById('firstAdminMessage');
+    msg.textContent = '';
+    if (!username || !pwd) {
+        msg.textContent = 'Provide username and password';
+        msg.className = 'message error';
+        return;
+    }
+    try {
+        const res = await apiFetch('/api/first-admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password: pwd })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Could not create');
+        }
+        // automatically log in with new credentials
+        adminToken = null;
+        document.getElementById('firstAdminSection').style.display = 'none';
+        document.getElementById('adminUsername').value = username;
+        document.getElementById('adminPassword').value = pwd;
+        await ownerLogin();
+    } catch (err) {
+        msg.textContent = err.message;
+        msg.className = 'message error';
+    }
+}
+
+async function ownerLogin() {
+    document.getElementById('firstAdminSection').style.display = 'none';
+
+    const username = document.getElementById('adminUsername').value;
+    const pwd = document.getElementById('adminPassword').value;
+    const msgEl = document.getElementById('loginMessage');
+    try {
+        if (!username || !pwd) {
+            msgEl.textContent = 'Please enter username and password';
+            msgEl.className = 'message error';
+            return;
+        }
+        const res = await apiFetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password: pwd })
+        });
+        if (!res.ok) {
+            const errorData = await res.json();
+            msgEl.textContent = errorData.error || 'Login failed';
+            msgEl.className = 'message error';
+            return;
+        }
+        const data = await res.json();
+        adminToken = data.token;
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        ownerLoadInstitutions();
+    } catch (err) {
+        msgEl.textContent = 'Error: ' + err.message;
+        msgEl.className = 'message error';
+    }
+}
+
+async function ownerCreateAdminUser() {
+    const user = document.getElementById('newAdminUsername').value.trim();
+    const pwd = document.getElementById('newAdminPassword').value;
+    const msg = document.getElementById('newAdminMsg');
+    msg.textContent = '';
+    if (!user || !pwd) {
+        msg.textContent = 'Provide username and password';
+        msg.className = 'message error';
+        return;
+    }
+    try {
+        const res = await apiFetch('/api/admins/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify({ username: user, password: pwd })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Failed to create admin');
+        }
+        const data = await res.json();
+        msg.textContent = 'Admin account created successfully: ' + user;
+        msg.className = 'message success';
+        document.getElementById('newAdminUsername').value = '';
+        document.getElementById('newAdminPassword').value = '';
+        ownerLoadInstitutions();
+    } catch (err) {
+        console.error('Create admin error:', err);
+        msg.textContent = err.message;
+        msg.className = 'message error';
+    }
+}
+
+function ownerLogout() {
+    adminToken = null;
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('loginMessage').textContent = '';
+    document.getElementById('loginMessage').className = 'message';
+    // after logging out of owner panel return to user login - nav will be shown if appropriate
+    showSection('login');
+}
+
+function ownerSaveAdminCache(data) {
+    try { localStorage.setItem('adminCache', JSON.stringify(data)); } catch {}
+}
+function ownerLoadAdminCache() {
+    try { const v = localStorage.getItem('adminCache'); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+
+async function ownerLoadInstitutions() {
+    const loadingEl = document.getElementById('ownerLoadingMessage');
+    if (loadingEl) loadingEl.style.display = 'block';
+
+    const cached = ownerLoadAdminCache();
+    if (cached) {
+        ownerRenderInstitutions(cached);
+    }
+
+    try {
+        const res = await apiFetch('/api/donors', {
+            headers: { 'Authorization': 'Bearer ' + adminToken }
+        });
+        if (!res.ok) {
+            console.warn('Failed to load donors, status:', res.status);
+            if (res.status === 401) {
+                console.warn('Unauthorized - your token may have expired');
+            }
+            return;
+        }
+        const donors = await res.json();
+        ownerRenderInstitutions(donors);
+        ownerSaveAdminCache(donors);
+    } catch (err) {
+        console.error('cannot load donors:', err);
+    } finally {
+        if (loadingEl) loadingEl.style.display = 'none';
+    }
+}
+
+function ownerRenderInstitutions(donors) {
+    const instList = document.getElementById('ownerInstList');
+    if (instList) instList.innerHTML = '';
+    for (const inst in donors) {
+        const row = document.createElement('div');
+        row.className = 'inst-row';
+        row.innerHTML = `<strong>${inst}</strong> (<span>${donors[inst].length}</span> donors)
+                         <button type="button" class="btn-small btn-secondary" onclick="ownerDeleteInstitution('${inst}')">Delete</button>`;
+        const donorContainer = document.createElement('div');
+        donors[inst].forEach((d, idx) => {
+            const dr = document.createElement('div');
+            dr.className = 'donor-row';
+            dr.innerHTML = `${d.name} (${d.bloodGroup}) - ${d.contact}
+                            <button type="button" class="btn-small" onclick="ownerDeleteDonor('${inst}', ${idx})">x</button>`;
+            donorContainer.appendChild(dr);
+        });
+        row.appendChild(donorContainer);
+        instList.appendChild(row);
+    }
+}
+
+async function ownerDeleteInstitution(inst) {
+    if (!confirm(`Really delete institution "${inst}"?`)) return;
+    try {
+        const res = await apiFetch(`/api/institutions/${encodeURIComponent(inst)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + adminToken }
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            alert('Error deleting institution: ' + (err.error || 'Status ' + res.status));
+            return;
+        }
+        await ownerLoadInstitutions();
+    } catch (err) {
+        console.error('deleteInstitution error:', err);
+        alert('Failed to delete: ' + err.message);
+    }
+}
+
+async function ownerDeleteDonor(inst, idx) {
+    if (!confirm('Delete this donor?')) return;
+    try {
+        const res = await apiFetch(`/api/institutions/${encodeURIComponent(inst)}/donors/${idx}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + adminToken }
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            alert('Error deleting donor: ' + (err.error || 'Status ' + res.status));
+            return;
+        }
+        await ownerLoadInstitutions();
+    } catch (err) {
+        console.error('deleteDonor error:', err);
+        alert('Failed to delete: ' + err.message);
+    }
+}
 
 // initialization
 (async function init() {

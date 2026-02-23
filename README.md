@@ -17,10 +17,8 @@ Blood-Donor-Finder-Website-main/
 │   ├── package.json
 │   ├── server.js           # Express application
 │   └── data.db             # SQLite database file (auto‑created)
-├── index.html              # User-facing client page
-├── owner.html              # Admin dashboard page
-├── script.js               # Frontend logic (communicates with API)
-├── owner.js                # Admin page logic
+├── index.html              # Single-page frontend (includes owner/admin dashboard)
+├── script.js               # Frontend logic (all features combined)
 ├── style.css               # Shared stylesheet
 └── README.md               # Documentation (this file)
 ```
@@ -36,7 +34,8 @@ Blood-Donor-Finder-Website-main/
    ```bash
    node setup.js
    ```
-   This creates the database tables and populates default admin accounts.
+   This creates the database tables, populates default admin accounts, and adds a couple of
+   sample institutions/donors so the admin dashboard isn’t empty on first visit.
 4. Start the server:
    ```bash
    npm start
@@ -45,7 +44,8 @@ Blood-Donor-Finder-Website-main/
 
 ## Client Usage (Everyone)
 1. Open a browser and navigate to `http://localhost:3000` (assuming the backend is running).
-2. Browse sections using the navigation buttons. A dedicated **Owner Panel** button in the header will take you to the separate admin login page (`owner.html`).
+   - If you prefer to use a static file server such as **VSCode Live Server** (which serves pages on a port like 5500), it's fine – the frontend script will automatically send API requests to `http://localhost:3000`. Just make sure the backend is started first. Opening the HTML files directly with `file://` will not work for any feature that talks to the server.
+2. Browse sections using the navigation buttons. A dedicated **Owner Panel** button in the header will open the integrated admin login/dashboard section.
 3. Register a donor—information is sent to the server if you're logged in. If you're offline or not authenticated, the details are stored locally and will appear in the lists immediately; they will sync with the backend once you sign in.
 4. View and search lists; results reflect backend data plus any locally cached entries.
 
@@ -59,17 +59,17 @@ The system comes with a **pre-configured admin account**. Use it to log in:
 | `MITHUN M` | `BABBLU0124` |
 
 ### Using the Admin Panel
-1. Click the **Owner Panel** button to open `owner.html` (or navigate directly to `http://localhost:3000/owner.html`).
+1. Click the **Owner Panel** button to open the admin section within the same page.
 2. **First-time users**: If no admin accounts exist, you'll see a **"Create Your Admin Account"** form.
    - Enter a username and password and click **Create Admin Account**.
    - You will be automatically logged in and can manage data immediately.
 3. **Regular login**: If admin accounts already exist, enter your username and password to log in.
 4. Once logged in to the **Admin Dashboard**, you can:
-   - **View all institutions and their registered donors** in a clean list format.
-   - **Delete institutions** - click the delete button next to any institution (confirmation required).
-   - **Delete individual donors** - click the "x" button next to any donor entry (confirmation required).
+   - **View all institutions and their registered donors** in a clean list format; counts are shown alongside the name.
+   - **Delete institutions** - click the Delete button next to any institution (confirmation required).
+   - **Delete individual donors** - each donor entry has an "x" button to remove it permanently.
    - **Create additional admin accounts** - use the "Create New Admin Account" section at the bottom.
-   - **Manage data without page refreshes** - all deletions use AJAX for smooth experience.
+   - **Manage data without page refreshes** - all deletions use AJAX for a smooth experience.
    - **Logout** - click the Logout button to securely exit.
 
 ### Admin Features
@@ -96,9 +96,9 @@ node setup.js
 npm start
 
 # Then visit
-# User site: http://localhost:3000
-# Admin panel: http://localhost:3000/owner.html
-# Login with: MITHUN M / BABBLU0124
+# Site (all features): http://localhost:3000
+# Login to owner panel using the Owner Panel button
+# Default admin login: MITHUN M / BABBLU0124
 ```
 
 ## Browser Support

@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blood Donor Finder</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* small tweaks for embedded owner/admin dashboard */
+        #ownerPanel #dashboard { padding: 1rem; }
+        .inst-row, .donor-row { border-bottom: 1px solid #ccc; padding: 0.5rem 0; }
+        .btn-small { font-size: 0.8rem; margin-left: 0.5rem; }
+    </style>
 </head>
 <body>
     <header>
@@ -17,8 +23,8 @@
             <button onclick="showSection('about')">About</button>
             <!-- admin link controlled by JS for in‑app admin tools -->
             <button id="adminNav" onclick="showSection('admin')" style="display:none;">Admin Tools</button>
-            <!-- direct link to the standalone owner/admin page -->
-            <button onclick="window.location.href='owner.html'" class="btn-secondary">Owner Panel</button>
+            <!-- switch to integrated owner/admin section -->
+            <button onclick="showSection('ownerPanel')" class="btn-secondary">Owner Panel</button>
             <button id="logoutBtn" onclick="logout()" class="btn-secondary">Logout</button>
         </nav>
     </header>
@@ -160,12 +166,49 @@
             <input type="text" id="newAdminEmail" placeholder="example@gmail.com or +1234567890">
             <button onclick="createAdmin()" class="btn-primary">Make Admin</button>
         </section>
+
+        <!-- integrated owner/admin dashboard section -->
+        <section id="ownerPanel" class="content-section" style="display:none;">
+            <button onclick="showSection('login')" class="btn-secondary" style="font-size:0.9rem; margin-bottom:1rem;">← Back to Main Site</button>
+            <section id="firstAdminSection" style="display:none;">
+                <h2>🆕 Create Your Admin Account</h2>
+                <p style="color:#666; margin-bottom:1rem;">This is your first time. Create an administrator account to manage the blood donor data.</p>
+                <input type="text" id="firstAdminUsername" placeholder="Username">
+                <input type="password" id="firstAdminPassword" placeholder="Password">
+                <button onclick="ownerCreateFirstAdmin()" class="btn-primary">Create Admin Account</button>
+                <p id="firstAdminMessage" class="message"></p>
+            </section>
+            <section id="loginSection" style="display:none;">
+                <h2>🔐 Admin Login</h2>
+                <input type="text" id="adminUsername" placeholder="Username">
+                <input type="password" id="adminPassword" placeholder="Password">
+                <button onclick="ownerLogin()" class="btn-primary">Login</button>
+                <p id="loginMessage" class="message"></p>
+            </section>
+            <section id="dashboard" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h2 style="margin:0;">Admin Dashboard</h2>
+                    <button onclick="ownerLogout()" class="btn-secondary">Logout</button>
+                </div>
+                <h3>Institutions & Donors</h3>
+                <p id="ownerLoadingMessage" style="display:none; color:#555;">Loading data…</p>
+                <div id="ownerInstList"></div>
+
+                <hr>
+                <h3>Create New Admin Account</h3>
+                <p style="color:#666;">Add more administrators to help manage the system.</p>
+                <input type="text" id="newAdminUsername" placeholder="Username">
+                <input type="password" id="newAdminPassword" placeholder="Password">
+                <button onclick="ownerCreateAdminUser()" class="btn-primary">Create Admin</button>
+                <p id="newAdminMsg" class="message"></p>
+            </section>
+        </section>
     </main>
 
     <footer>
         <p>&copy; 2026 Blood Donor Finder. Saving Lives, One Donation at a Time.</p>
-        <!-- owner/admin link is intentionally unobtrusive -->
-        <p><a href="owner.html" style="font-size:0.8rem;">Admin Login</a></p>
+        <!-- owner panel entrypoint -->
+        <p><a href="#" onclick="showSection('ownerPanel')" style="font-size:0.8rem;">Admin Login</a></p>
     </footer>
 
     <script src="script.js"></script>

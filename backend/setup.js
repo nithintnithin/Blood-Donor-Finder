@@ -90,6 +90,28 @@ async function setup() {
             }
         }
 
+        // insert some sample institutions and donors if none exist
+        const row = await new Promise((resolve, reject) => {
+            db.get('SELECT COUNT(*) AS count FROM institutions', (err, r) => {
+                if (err) reject(err);
+                else resolve(r);
+            });
+        });
+        if (row && row.count === 0) {
+            console.log('\nSeeding sample institution and donor data...');
+            const sampleInst = ['City Hospital', 'Community Center'];
+            for (const inst of sampleInst) {
+                const instRes = await dbRun('INSERT INTO institutions (name) VALUES (?)', [inst]);
+                const instId = instRes.lastID;
+                // two donors per institution
+                await dbRun('INSERT INTO donors (institution_id,name,age,bloodGroup,contact,address) VALUES (?,?,?,?,?,?)',
+                    [instId, 'Alice ' + inst, 28, 'A+', '+1000000000', '123 Main St']);
+                await dbRun('INSERT INTO donors (institution_id,name,age,bloodGroup,contact,address) VALUES (?,?,?,?,?,?)',
+                    [instId, 'Bob ' + inst, 35, 'O-', '+1000000001', '456 Oak Ave']);
+            }
+            console.log('✓ Sample data added');
+        }
+
         console.log('\n✓ Database setup complete!');
         console.log('\nAvailable admin accounts:');
         console.log('  - Username: MITHUN M, Password: BABBLU0124');

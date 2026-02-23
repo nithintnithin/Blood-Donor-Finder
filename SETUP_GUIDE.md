@@ -33,6 +33,16 @@ In the same backend folder, run:
 npm start
 ```
 
+> To reset the database (and reseed sample donors) delete `backend/data.db` and run the
+> setup script again:
+>
+> ```bash
+> cd backend
+> rm data.db        # or PowerShell: Remove-Item data.db
+> node setup.js
+> ```
+
+
 You should see:
 ```
 Server running on http://localhost:3000
@@ -45,6 +55,9 @@ Open your web browser and go to:
 ```
 http://localhost:3000
 ```
+
+> **Note:** The site assumes the backend API runs on port 3000. If you serve the static files using a tool like **VSCode Live Server** (commonly on port 5500), the JavaScript automatically proxies requests to `http://localhost:3000`. You still must start the backend as described above; simply opening the HTML files alone will not provide the API endpoints.
+
 
 ---
 
@@ -71,7 +84,7 @@ When you first visit the Admin section:
 - **Filter by Blood Group**: View specific blood types within each institution
 
 ### For Administrators
-- **Login**: Access admin panel with credentials
+- **Login**: Access admin panel via the Owner Panel button on the main site
 - **Manage Institutions**: Delete institutions (cascade deletes all donors from it)
 - **Manage Donors**: Delete individual donor records
 - **Create More Admins**: Add additional administrators without needing setup scripts
@@ -105,11 +118,9 @@ npm start
 
 ```
 Blood-Donor-Finder-Website-main/
-├── index.html              (Main website)
+├── index.html              (Single-page frontend – includes owner/admin dashboard)
 ├── script.js               (Frontend logic)
 ├── style.css               (Styling)
-├── owner.html              (Alternate admin page)
-├── owner.js                (Admin logic)
 ├── SETUP_GUIDE.md          (This file)
 ├── README.md               (Project documentation)
 └── backend/
